@@ -64,6 +64,8 @@
     file: '<path d="M6 2.5h8l5 5V21a.5.5 0 0 1-.5.5h-12A.5.5 0 0 1 6 21z"/><path d="M14 2.5V8h5"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4.2 4-6.5 8-6.5s7.2 2.3 8 6.5"/>'
   };
+  IC.calplus = '<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M12 12.5v6M9 15.5h6"/>';
+  IC.userplus = '<circle cx="10" cy="8" r="4"/><path d="M3 20c.7-3.8 3.4-6 7-6 1.6 0 3 .4 4.1 1.2M18 13v6M15 16h6"/>';
   function ic(n, extra) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"' + (extra || '') + '>' + (IC[n] || '') + '</svg>'; }
 
   var STATUS = {
@@ -71,7 +73,7 @@
   };
   var STATUS_ORDER = ['booked', 'confirmed', 'arrived', 'done', 'noshow', 'cancelled'];
   var METHODS = { cash: 'نقدی', card: 'کارتخوان', transfer: 'کارت‌به‌کارت', cheque: 'چک', insurance: 'بیمه' };
-  var COLORS = ['#1565d8', '#0e9c89', '#c2410c', '#9333ea', '#db2777', '#ca8a04', '#0891b2', '#4d7c0f'];
+  var COLORS = ['#1fae9e', '#5b7cf0', '#c2410c', '#9333ea', '#db2777', '#ca8a04', '#0891b2', '#4d7c0f'];
   function stBadge(s) { return '<span class="badge st-' + s + '">' + (STATUS[s] || s) + '</span>'; }
   var ACTIVE_ST = function (a) { return a.status !== 'cancelled'; };
 
@@ -172,104 +174,199 @@
 
   // ================= چیدمان =================
   var NAV = [
-    ['home', 'خانه', 'home'], ['calendar', 'نوبت‌ها', 'cal'], ['patients', 'بیماران', 'users'],
-    ['finance', 'مالی', 'money'], ['waitlist', 'لیست انتظار', 'hourglass'], ['settings', 'تنظیمات', 'settings']
+    ['home', 'خانه', 'home'], ['calendar', 'نوبت‌ها', 'cal'], ['patients', 'بیماران', 'users'], ['services', 'خدمات', 'tooth'],
+    ['finance', 'مالی', 'money'], ['waitlist', 'لیست انتظار', 'hourglass'], ['more', 'پروفایل و تنظیمات', 'settings']
   ];
-  var TITLES = { home: 'خانه', calendar: 'نوبت‌ها', patients: 'بیماران', patient: 'پرونده بیمار', finance: 'گزارش مالی', waitlist: 'لیست انتظار', settings: 'تنظیمات', more: 'بیشتر' };
+  var TITLES = { home: 'خانه', calendar: 'نوبت‌ها', patients: 'بیماران', patient: 'پرونده بیمار', finance: 'گزارش مالی', waitlist: 'لیست انتظار', settings: 'تنظیمات', more: 'پروفایل', services: 'خدمات و تعرفه‌ها' };
+  var SET_TITLES = { clinic: 'اطلاعات مطب', hours: 'ساعات کاری', doctors: 'پزشکان', services: 'خدمات', sms: 'پیامک یادآوری', sync: 'همگام‌سازی و کاربران', backup: 'پشتیبان و خروجی' };
+  var BACK = { patient: 'patients', settings: 'more', waitlist: 'more', services: 'more' };
+  function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
 
   function syncIndicator() {
-    if (S.mode !== 'cloud') return '<span class="row tiny muted" title="حالت محلی"><span class="sync-dot local"></span>محلی</span>';
+    if (S.mode !== 'cloud') return '<span class="sync-pill" title="داده‌ها فقط روی همین دستگاه"><span class="sync-dot local"></span>محلی</span>';
     var cls = !S.online ? 'off' : (S.syncing || S.queue.length) ? 'busy' : '';
     var txt = !S.online ? 'آفلاین' + (S.queue.length ? ' (' + fa(S.queue.length) + ')' : '') : S.queue.length ? 'در حال ارسال' : 'همگام';
-    return '<span class="row tiny muted"><span class="sync-dot ' + cls + '"></span>' + txt + '</span>';
+    return '<span class="sync-pill"><span class="sync-dot ' + cls + '"></span>' + txt + '</span>';
   }
 
   function render() {
+    if (ui.gate) return;
     var root = $('#root');
     var st = settings();
     var v = ui.view;
-    var side = '<aside class="sidebar"><div class="brand"><div class="brand-logo"><img src="logo.png" alt=""></div><div><div class="brand-name">دنتینو</div><div class="brand-sub ellipsis" style="max-width:140px">' + esc(st.clinicName) + '</div></div></div>' +
-      NAV.map(function (n) { return '<button class="nav-item' + (v === n[0] || (v === 'patient' && n[0] === 'patients') ? ' active' : '') + '" data-act="nav" data-v="' + n[0] + '">' + ic(n[2]) + n[1] + '</button>'; }).join('') +
+    var sec = v === 'patient' ? 'patients' : v === 'settings' ? 'more' : v;
+    var side = '<aside class="sidebar"><div class="brand"><div class="brand-logo"><img src="logo.png" alt=""></div><div><div class="brand-name">دنتینو</div><div class="brand-sub ellipsis" style="max-width:150px">' + esc(st.clinicName) + '</div></div></div>' +
+      NAV.map(function (n) { return '<button class="nav-item' + (sec === n[0] ? ' active' : '') + '" data-act="nav" data-v="' + n[0] + '">' + ic(n[2]) + n[1] + '</button>'; }).join('') +
       '<div class="spacer"></div>' +
-      (S.user ? '<div class="tiny muted" style="padding:0 12px 6px">' + ic('user', ' style="width:14px;height:14px;vertical-align:-2px"') + ' ' + esc(S.user.username) + '</div>' : '') +
-      '<button class="nav-item" data-act="theme">' + ic(document.documentElement.getAttribute('data-theme') === 'dark' ? 'sun' : 'moon') + 'تغییر پوسته</button></aside>';
+      '<div style="padding:0 10px 8px">' + syncIndicator() + '</div>' +
+      '<button class="nav-item" data-act="theme">' + ic(isDark() ? 'sun' : 'moon') + (isDark() ? 'حالت روشن' : 'حالت تیره') + '</button></aside>';
 
-    var bn = [['home', 'خانه', 'home'], ['calendar', 'نوبت‌ها', 'cal'], ['patients', 'بیماران', 'users'], ['finance', 'مالی', 'money'], ['more', 'بیشتر', 'more']];
+    var bn = [['home', 'خانه', 'home'], ['calendar', 'نوبت‌ها', 'cal'], ['patients', 'بیماران', 'users'], ['finance', 'مالی', 'money'], ['more', 'پروفایل', 'user']];
+    var bsec = (v === 'settings' || v === 'waitlist' || v === 'services') ? 'more' : sec;
     var bottom = '<nav class="bottomnav">' + bn.map(function (n) {
-      var act = v === n[0] || (v === 'patient' && n[0] === 'patients') || ((v === 'waitlist' || v === 'settings') && n[0] === 'more');
-      return '<button class="' + (act ? 'active' : '') + '" data-act="nav" data-v="' + n[0] + '">' + ic(n[2]) + n[1] + '</button>';
+      return '<button class="' + (bsec === n[0] ? 'active' : '') + '" data-act="nav" data-v="' + n[0] + '"><span class="ib">' + ic(n[2]) + '</span>' + n[1] + '</button>';
     }).join('') + '</nav>';
 
     var body = VIEWS[v] ? VIEWS[v]() : '';
-    var top = '<div class="topbar">' + (v === 'patient' ? '<button class="btn icon ghost" data-act="nav" data-v="patients">' + ic('right') + '</button>' : '') +
-      '<h1>' + TITLES[v] + '</h1><div class="grow"></div>' + syncIndicator() + (TOPACT[v] ? TOPACT[v]() : '') + '</div>';
+    var title = v === 'settings' ? (SET_TITLES[ui.setTab] || 'تنظیمات') : TITLES[v];
+    var top = '';
+    if (v === 'home') top = '';
+    else if (BACK[v]) top = '<div class="topbar sub"><button class="icon-pill" data-act="back" title="بازگشت">' + ic('right') + '</button><h1>' + title + '</h1><div class="acts">' + (TOPACT[v] ? TOPACT[v]() : '') + '</div></div>';
+    else top = '<div class="topbar"><h1>' + title + '</h1><div class="grow"></div>' + syncIndicator() + (TOPACT[v] ? TOPACT[v]() : '') + '</div>';
     var fab = (v === 'home' || v === 'calendar') ? '<button class="fab" data-act="newAppt" title="نوبت جدید">' + ic('plus') + '</button>'
       : v === 'patients' ? '<button class="fab" data-act="editPatient" title="بیمار جدید">' + ic('plus') + '</button>'
-      : v === 'waitlist' ? '<button class="fab" data-act="editWait" title="افزودن">' + ic('plus') + '</button>' : '';
+      : v === 'waitlist' ? '<button class="fab" data-act="editWait" title="افزودن">' + ic('plus') + '</button>'
+      : v === 'services' ? '<button class="fab" data-act="editService" title="خدمت جدید">' + ic('plus') + '</button>' : '';
 
     var scrollY = window.scrollY, schedScroll = $('.sched') ? $('.sched').scrollTop : null;
     var focusId = document.activeElement && document.activeElement.id, selStart = document.activeElement && document.activeElement.selectionStart;
     root.innerHTML = '<div id="app">' + side + '<main>' + top + '<div class="content">' + body + '</div></main>' + bottom + fab + '</div>';
     window.scrollTo(0, scrollY);
+    onScroll();
     if (focusId && document.getElementById(focusId) && !$('.overlay')) { var f = document.getElementById(focusId); f.focus(); try { f.setSelectionRange(selStart, selStart); } catch (e) {} }
     if (AFTER[v]) AFTER[v](schedScroll);
   }
+  function onScroll() { var t = $('.topbar'); if (t) t.classList.toggle('scrolled', window.scrollY > 8); }
+  window.addEventListener('scroll', onScroll, { passive: true });
 
   var TOPACT = {
     calendar: function () {
-      return '<button class="btn sm" data-act="today">امروز</button><button class="btn sm icon" data-act="printDay" title="چاپ برنامه روز">' + ic('print') + '</button>';
+      return '<button class="btn sm" data-act="today">امروز</button><button class="icon-pill" data-act="printDay" title="چاپ برنامه روز">' + ic('print') + '</button>';
     },
     patient: function () {
-      return '<button class="btn sm icon" data-act="editPatient" data-id="' + ui.pid + '" title="ویرایش">' + ic('edit') + '</button>';
+      return '<button class="icon-pill" data-act="editPatient" data-id="' + ui.pid + '" title="ویرایش">' + ic('edit') + '</button>';
     }
   };
 
+  // ================= تصاویر (SVG) =================
+  var ART_N = 0;
+  var TOOTH_D = 'M30 18C18 18 12 28 13 40c1 12 7 18 9 30 2 12 4 22 11 22s7-12 10-20c2-6 4-9 7-9s5 3 7 9c3 8 3 20 10 20s9-10 11-22c2-12 8-18 9-30 1-12-5-22-17-22-8 0-12 5-20 5s-12-5-20-5z';
+  function star4(cx, cy, r, fill, op) {
+    return '<path d="M' + cx + ' ' + (cy - r) + 'Q' + cx + ' ' + cy + ' ' + (cx + r) + ' ' + cy + 'Q' + cx + ' ' + cy + ' ' + cx + ' ' + (cy + r) + 'Q' + cx + ' ' + cy + ' ' + (cx - r) + ' ' + cy + 'Q' + cx + ' ' + cy + ' ' + cx + ' ' + (cy - r) + 'z" fill="' + fill + '" opacity="' + (op || 1) + '"/>';
+  }
+  // opts: ring, shield, sparkle, cal, check, kind (clean|white|implant|ortho|surgery|kids|general)
+  function toothSVG(o) {
+    o = o || {};
+    var id = 'ta' + (++ART_N);
+    var s = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>' +
+      '<linearGradient id="' + id + 'a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f2fbf9"/><stop offset="1" stop-color="#c9e8e3"/></linearGradient>' +
+      '<radialGradient id="' + id + 'b" cx=".3" cy=".22" r=".55"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>' +
+      '<linearGradient id="' + id + 'c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fe6d3"/><stop offset="1" stop-color="#139585"/></linearGradient>' +
+      '<linearGradient id="' + id + 'm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d7e1e4"/><stop offset=".5" stop-color="#f5f8f9"/><stop offset="1" stop-color="#aab9be"/></linearGradient>' +
+      '<clipPath id="' + id + 'k"><rect x="0" y="0" width="100" height="58"/></clipPath>' +
+      '<filter id="' + id + 'd" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="3.5" flood-color="#1a7e73" flood-opacity=".22"/></filter></defs>';
+    var ringT = 'rotate(-14 50 60)';
+    if (o.ring) s += '<g transform="' + ringT + '"><path d="M3 60A47 13 0 0 1 97 60" fill="none" stroke="url(#' + id + 'c)" stroke-width="3.5" opacity=".45"/></g>';
+    var implant = o.kind === 'implant';
+    s += '<g filter="url(#' + id + 'd)"' + (implant ? ' clip-path="url(#' + id + 'k)"' : '') + '><path d="' + TOOTH_D + '" fill="url(#' + id + 'a)" stroke="#d3ebe7" stroke-width="1.2"/>' +
+      '<path d="' + TOOTH_D + '" fill="url(#' + id + 'b)"/><path d="M23 33c2-7 8-10 14-8" stroke="#fff" stroke-width="4" stroke-linecap="round" fill="none" opacity=".95"/></g>';
+    if (implant) {
+      s += '<rect x="40" y="58" width="20" height="5" rx="2" fill="#c3d0d4"/><path d="M42 63h16l-2 26q-6 5-12 0z" fill="url(#' + id + 'm)" stroke="#9fb0b5" stroke-width=".8"/>';
+      for (var t = 0; t < 5; t++) s += '<path d="M42 ' + (67 + t * 4.5) + 'l16 -2" stroke="#8fa1a7" stroke-width="1.4" stroke-linecap="round"/>';
+    }
+    if (o.ring) s += '<g transform="' + ringT + '"><path d="M97 60A47 13 0 0 1 3 60" fill="none" stroke="url(#' + id + 'c)" stroke-width="4.5" stroke-linecap="round"/></g>';
+    if (o.kind === 'ortho') s += '<path d="M8 47Q50 42 92 47" stroke="#8ea2a8" stroke-width="2" fill="none"/><rect x="41" y="39" width="18" height="13" rx="3" fill="#b9c8cc" stroke="#8ea2a8"/><rect x="46" y="43" width="8" height="5" rx="1" fill="#e9f0f2"/>';
+    if (o.kind === 'clean') s += star4(80, 22, 7, '#38c4b1') + star4(18, 70, 5, '#38c4b1', .8) + '<circle cx="84" cy="44" r="3.5" fill="#9fe6dc"/><circle cx="76" cy="62" r="2.5" fill="#9fe6dc"/>';
+    if (o.kind === 'white' || o.sparkle) s += star4(82, 20, 8, '#ffffff') + star4(82, 20, 5, '#5fdcc9') + star4(17, 26, 5, '#5fdcc9', .9) + star4(88, 74, 4, '#5fdcc9', .7);
+    if (o.kind === 'surgery') s += '<circle cx="74" cy="72" r="13" fill="#ec5f7a"/><path d="M74 65v14M67 72h14" stroke="#fff" stroke-width="4" stroke-linecap="round"/>';
+    if (o.kind === 'kids') s += '<path d="M74 84c-9-6-14-11-14-16a6 6 0 0 1 14-3 6 6 0 0 1 14 3c0 5-5 10-14 16z" fill="#ff8aa3"/>';
+    if (o.kind === 'general' || o.shield) {
+      var sx = o.shield ? 66 : 70, sy = o.shield ? 50 : 56, k = o.shield ? 1 : .8;
+      s += '<g transform="translate(' + sx + ' ' + sy + ') scale(' + k + ')"><path d="M0-17l15 5.5v10.5c0 10-6.5 16-15 19.5-8.5-3.5-15-9.5-15-19.5v-10.5z" fill="url(#' + id + 'c)" stroke="#fff" stroke-width="2.4"/>' +
+        '<path d="M0-8v14M-7 -1h14" stroke="#fff" stroke-width="4" stroke-linecap="round"/></g>';
+    }
+    if (o.cal) s += '<g transform="translate(58 52)"><rect x="0" y="4" width="36" height="32" rx="7" fill="#fff" stroke="#1fae9e" stroke-width="2.5"/><path d="M0 11a7 7 0 0 1 7-7h22a7 7 0 0 1 7 7v5H0z" fill="#1fae9e"/>' +
+      '<path d="M10 0v8M26 0v8" stroke="#1fae9e" stroke-width="3" stroke-linecap="round"/><g fill="#7fdccf"><rect x="6" y="20" width="6" height="5" rx="1.5"/><rect x="15" y="20" width="6" height="5" rx="1.5"/><rect x="24" y="20" width="6" height="5" rx="1.5"/><rect x="6" y="28" width="6" height="5" rx="1.5"/></g>' +
+      '<circle cx="31" cy="33" r="9" fill="#22c4a4" stroke="#fff" stroke-width="2.5"/><path d="M27 33l3 3 5-6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>';
+    if (o.check) s += '<g transform="translate(74 70)"><circle r="14" fill="#fff"/><circle r="11" fill="#22c4a4"/><path d="M-5 0l3.5 3.5 6.5-7" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>' +
+      '<g transform="translate(22 76)"><rect x="-12" y="-9" width="24" height="18" rx="4" fill="#fff" stroke="#9fd9cf" stroke-width="2"/><path d="M-7-3h14M-7 2h9" stroke="#1fae9e" stroke-width="2.4" stroke-linecap="round"/></g>';
+    return s + '</svg>';
+  }
+  function ringHTML(pct) {
+    var r = 35, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(100, pct)) / 100), id = 'rg' + (++ART_N);
+    return '<div class="ring"><svg viewBox="0 0 84 84"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--primary-2)"/><stop offset="1" style="stop-color:var(--primary)"/></linearGradient></defs>' +
+      '<circle cx="42" cy="42" r="' + r + '" fill="none" style="stroke:var(--primary-soft)" stroke-width="9"/>' +
+      '<circle cx="42" cy="42" r="' + r + '" fill="none" stroke="url(#' + id + ')" stroke-width="9" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg>' +
+      '<div class="pc num">٪' + fa(Math.round(pct)) + '</div></div>';
+  }
+
   // ================= صفحه خانه =================
   var VIEWS = {};
-  VIEWS.home = function () {
-    var today = J.today(), list = apptsOn(today), act = list.filter(ACTIVE_ST);
-    var tPay = 0; S.all('payments').forEach(function (p) { if (p.date === today) tPay += p.amount || 0; });
-    var bal = allBalances(), debt = 0, debtors = 0; Object.keys(bal).forEach(function (k) { if (bal[k] > 0 && S.get('patients', k)) { debt += bal[k]; debtors++; } });
-    var done = list.filter(function (a) { return a.status === 'done'; }).length;
-    var waiting = list.filter(function (a) { return a.status === 'arrived'; });
-    var tom = J.addDays(today, 1);
-    var tomList = apptsOn(tom).filter(function (a) { return a.status === 'booked' || a.status === 'confirmed'; });
-    var notRem = tomList.filter(function (a) { return !a.reminded; }).length;
-
-    var h = '<div class="muted" style="margin:-4px 0 12px">' + J.jLong(today) + '</div>';
-    h += '<div class="grid g4">' +
-      stat('نوبت‌های امروز', fa(act.length), done ? fa(done) + ' انجام‌شده' : '') +
-      stat('در مطب / انتظار', fa(waiting.length), '') +
-      stat('دریافتی امروز', money(tPay), 'تومان') +
-      stat('طلب از بیماران', money(debt), fa(debtors) + ' نفر') + '</div>';
-
-    h += '<div class="grid g2" style="margin-top:12px"><div class="card"><div class="card-title">' + ic('cal', ' style="width:19px;height:19px;color:var(--primary)"') + 'نوبت‌های امروز<button class="btn sm act" data-act="nav" data-v="calendar">تقویم</button></div>';
-    if (!list.length) h += '<div class="empty">' + ic('cal') + 'امروز نوبتی ثبت نشده</div>';
-    else h += '<div class="list">' + list.map(apptRow).join('') + '</div>';
-    h += '</div><div>';
-
-    h += '<div class="card"><div class="card-title">' + ic('bell', ' style="width:19px;height:19px;color:var(--warn)"') + 'یادآوری نوبت‌های فردا' +
-      (tomList.length ? '<span class="badge ' + (notRem ? 'bad' : 'good') + ' act">' + (notRem ? fa(notRem) + ' ارسال‌نشده' : 'همه ارسال شد') + '</span>' : '') + '</div>';
-    if (!tomList.length) h += '<div class="muted small">برای فردا (' + J.jMid(tom) + ') نوبتی ثبت نشده.</div>';
-    else h += '<div class="list">' + tomList.map(function (a) {
+  function greetWord() { var h = new Date().getHours(); return h >= 5 && h < 12 ? 'صبح بخیر' : h < 16 && h >= 12 ? 'ظهر بخیر' : h >= 16 && h < 20 ? 'عصر بخیر' : 'شب بخیر'; }
+  function myName() {
+    if (S.user) { var s = S.get('staff', S.user.username); return (s && s.name) || S.user.username; }
+    var st = settings(); return st.greetName || (doctors()[0] || {}).name || st.clinicName;
+  }
+  function tomorrowList() { return apptsOn(J.addDays(J.today(), 1)).filter(function (a) { return a.status === 'booked' || a.status === 'confirmed'; }); }
+  function remindersHTML() {
+    var tom = J.addDays(J.today(), 1), tomList = tomorrowList();
+    if (!tomList.length) return '<div class="muted small">برای فردا (' + J.jMid(tom) + ') نوبتی ثبت نشده.</div>';
+    return '<div class="list">' + tomList.map(function (a) {
       var p = S.get('patients', a.patientId) || {};
       return '<div class="li" style="cursor:default"><div class="time-col num">' + fa(a.time) + '</div><div class="grow"><div class="t ellipsis">' + esc(p.name) + '</div><div class="s">' + esc(dName(a.doctorId)) + '</div></div>' +
         (a.reminded ? '<span class="badge good">' + ic('check', ' style="width:13px;height:13px"') + 'ارسال شد</span>' : '') +
         (p.phone ? '<button class="btn sm" data-act="sendSms" data-id="' + a.id + '">' + ic('sms') + 'پیامک</button>' : '<span class="tiny muted">بدون شماره</span>') + '</div>';
     }).join('') + '</div>';
-    h += '</div>';
+  }
+  function nextAppt() {
+    var today = J.today(), nm = nowMin();
+    var n = apptsOn(today).filter(function (a) { return (a.status === 'booked' || a.status === 'confirmed' || a.status === 'arrived') && t2m(a.time) + (+a.duration || 30) >= nm; })[0];
+    if (n) return n;
+    return appts().filter(function (a) { return a.date > today && (a.status === 'booked' || a.status === 'confirmed'); })
+      .sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); })[0];
+  }
+  VIEWS.home = function () {
+    var today = J.today(), list = apptsOn(today), act = list.filter(function (a) { return ACTIVE_ST(a) && a.status !== 'noshow'; });
+    var tPay = 0; S.all('payments').forEach(function (p) { if (p.date === today) tPay += p.amount || 0; });
+    var bal = allBalances(), debt = 0, debtors = 0; Object.keys(bal).forEach(function (k) { if (bal[k] > 0 && S.get('patients', k)) { debt += bal[k]; debtors++; } });
+    var done = list.filter(function (a) { return a.status === 'done'; }).length;
+    var waiting = list.filter(function (a) { return a.status === 'arrived'; }).length;
+    var notRem = tomorrowList().filter(function (a) { return !a.reminded; }).length;
+    var me = myName();
 
+    var L = '<div class="hello"><div class="avatar" style="width:48px;height:48px;font-size:19px">' + esc(initials(me)) + '</div><div class="grow"><div class="hi">' + greetWord() + ' · ' + J.jMid(today) + '</div>' +
+      '<div class="nm ellipsis">' + esc(me) + ' 👋</div></div>' + (S.mode === 'cloud' ? syncIndicator() : '') +
+      '<button class="icon-pill" data-act="reminders" title="یادآوری‌ها">' + ic('bell') + (notRem ? '<span class="bdg num">' + fa(notRem) + '</span>' : '') + '</button></div>';
+    L += '<button class="searchbar" data-act="goSearch">' + ic('search') + '<span>جستجوی بیمار، موبایل یا شماره پرونده…</span><span class="end">' + ic('users', ' style="width:17px;height:17px"') + '</span></button>';
+
+    var n = nextAppt();
+    if (n) {
+      var p = S.get('patients', n.patientId) || {}, isT = n.date === today;
+      L += '<div class="hero"><div class="art">' + toothSVG({ ring: true, sparkle: true }) + '</div><div class="txt"><div class="lbl">نوبت بعدی' + (isT ? ' · امروز' : '') + '</div>' +
+        '<div class="who ellipsis">' + (p.alerts ? '⚠ ' : '') + esc(p.name || '—') + '</div><div class="what ellipsis">' + esc([svcName(n.serviceId), dName(n.doctorId)].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="when"><span>' + ic('cal') + (isT ? 'امروز' : J.WEEKDAYS[J.weekday(n.date)] + ' ' + J.jMid(n.date)) + '</span><span class="num">' + ic('clock') + fa(n.time) + '</span></div></div>' +
+        '<div class="acts">' + (isT ? (n.status === 'arrived' ? '<button class="hb solid" data-act="setStatus" data-id="' + n.id + '" data-s="done">انجام شد</button>' : '<button class="hb solid" data-act="setStatus" data-id="' + n.id + '" data-s="arrived">پذیرش</button>') : '') +
+        '<button class="hb" data-act="editAppt" data-id="' + n.id + '">تغییر زمان</button><div class="grow"></div><button class="hc" data-act="openAppt" data-id="' + n.id + '" title="جزئیات">' + ic('left') + '</button></div></div>';
+    } else {
+      L += '<div class="hero"><div class="art">' + toothSVG({ ring: true, sparkle: true }) + '</div><div class="txt"><div class="lbl">نوبت بعدی</div><div class="who">نوبت فعالی ندارید</div>' +
+        '<div class="what">برای امروز و روزهای آینده نوبتی ثبت نشده است.</div></div><div class="acts"><button class="hb solid" data-act="newAppt">ثبت نوبت جدید</button></div></div>';
+    }
+
+    L += '<div class="sec-h"><b>دسترسی سریع</b><button class="link" data-act="nav" data-v="more">همه</button></div><div class="qa">' +
+      '<button data-act="newAppt"><span class="ic c1">' + ic('calplus') + '</span>نوبت جدید</button>' +
+      '<button data-act="editPatient"><span class="ic c2">' + ic('userplus') + '</span>بیمار جدید</button>' +
+      '<button data-act="reminders"><span class="ic c3">' + ic('bell') + '</span>یادآوری‌ها' + (notRem ? '<span class="bdg num">' + fa(notRem) + '</span>' : '') + '</button>' +
+      '<button data-act="nav" data-v="services"><span class="ic c4">' + ic('tooth') + '</span>خدمات</button></div>';
+
+    var pct = act.length ? done / act.length * 100 : 0;
+    var big = !act.length ? 'امروز نوبتی ندارید' : pct >= 80 ? 'عالی! 👏' : pct >= 40 ? 'خوب پیش می‌رود 👍' : done ? 'شروع خوبی بوده ☀️' : 'روز تازه شروع شده ☀️';
+    L += '<div class="sec-h"><b>وضعیت امروز</b><button class="link" data-act="nav" data-v="finance">گزارش</button></div><div class="card"><div class="score">' + ringHTML(pct) +
+      '<div class="grow"><div class="big">' + big + '</div><div class="small muted">' + fa(done) + ' از ' + fa(act.length) + ' نوبت امروز انجام شده' + (waiting ? ' · ' + fa(waiting) + ' نفر در مطب' : '') + '</div></div></div>' +
+      '<div class="mini-stats"><div class="mini"><div class="l">دریافتی امروز</div><div class="v num">' + money(tPay) + ' <small>تومان</small></div></div>' +
+      '<div class="mini" data-act="nav" data-v="finance" style="cursor:pointer"><div class="l">طلب از بیماران' + (debtors ? ' (' + fa(debtors) + ' نفر)' : '') + '</div><div class="v num" style="color:' + (debt ? 'var(--danger)' : 'inherit') + '">' + money(debt) + ' <small>تومان</small></div></div></div></div>';
+
+    var R = '<div class="sec-h"><b>نوبت‌های امروز</b><button class="link" data-act="nav" data-v="calendar">تقویم</button></div><div class="card" style="padding:8px 12px">';
+    R += list.length ? '<div class="list">' + list.map(apptRow).join('') + '</div>' : '<div class="empty">' + ic('cal') + 'امروز نوبتی ثبت نشده</div>';
+    R += '</div>';
+    R += '<div class="sec-h"><b>یادآوری نوبت‌های فردا</b>' + (tomorrowList().length ? '<span class="badge ' + (notRem ? 'bad' : 'good') + '">' + (notRem ? fa(notRem) + ' ارسال‌نشده' : 'همه ارسال شد') + '</span>' : '') + '</div><div class="card" style="padding:10px 12px">' + remindersHTML() + '</div>';
     var wl = S.all('waitlist');
-    h += '<div class="card"><div class="card-title">' + ic('hourglass', ' style="width:19px;height:19px;color:var(--info)"') + 'لیست انتظار<button class="btn sm act" data-act="nav" data-v="waitlist">' + fa(wl.length) + ' نفر</button></div>' +
-      (wl.length ? '<div class="small muted">' + wl.slice(0, 4).map(function (w) { return esc(w.name); }).join('، ') + (wl.length > 4 ? ' و ...' : '') + '</div>' : '<div class="small muted">کسی در لیست انتظار نیست.</div>') + '</div>';
-
+    if (wl.length) R += '<div class="sec-h"><b>لیست انتظار</b><button class="link" data-act="nav" data-v="waitlist">' + fa(wl.length) + ' نفر</button></div><div class="card small muted">' + wl.slice(0, 4).map(function (w) { return esc(w.name); }).join('، ') + (wl.length > 4 ? ' و ...' : '') + '</div>';
     var bd = birthdaysToday();
-    if (bd.length) h += '<div class="card"><div class="card-title">🎂 تولد بیماران امروز</div><div class="list">' + bd.map(function (p) {
+    if (bd.length) R += '<div class="sec-h"><b>🎂 تولد بیماران امروز</b></div><div class="card" style="padding:8px 12px"><div class="list">' + bd.map(function (p) {
       return '<div class="li" data-act="openPatient" data-id="' + p.id + '"><div class="avatar">' + esc(initials(p.name)) + '</div><div class="grow t">' + esc(p.name) + '</div>' +
         (p.phone ? '<button class="btn sm" data-act="smsBirthday" data-id="' + p.id + '">' + ic('sms') + 'تبریک</button>' : '') + '</div>';
     }).join('') + '</div></div>';
-    h += '</div></div>';
-    return h;
+    return '<div class="home-grid"><div>' + L + '</div><div>' + R + '</div></div>';
   };
   function stat(l, v, sub) { return '<div class="card stat"><div class="lbl">' + l + '</div><div class="val num">' + v + '</div>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>'; }
   function birthdaysToday() {
@@ -426,17 +523,18 @@
     var p = S.get('patients', ui.pid);
     if (!p) { ui.view = 'patients'; return VIEWS.patients(); }
     var b = balanceOf(p.id), age = ageFrom(p.birth);
-    var h = '<div class="card"><div class="row gap-lg"><div class="avatar" style="width:54px;height:54px;font-size:22px">' + esc(initials(p.name)) + '</div><div class="grow">' +
-      '<div style="font-weight:800;font-size:18px">' + esc(p.name) + '</div><div class="small muted num">پرونده ' + fa(p.fileNo || '-') + (age !== '' ? ' · ' + fa(age) + ' ساله' : '') + (p.gender ? ' · ' + (p.gender === 'm' ? 'آقا' : 'خانم') : '') + '</div></div>' +
-      '<div class="row">' + (p.phone ? '<button class="btn icon" data-act="call" data-p="' + esc(p.phone) + '" title="تماس">' + ic('phone') + '</button><button class="btn icon" data-act="smsTo" data-p="' + esc(p.phone) + '" title="پیامک">' + ic('sms') + '</button>' : '') + '</div></div>';
-    if (p.alerts) h += '<div class="alert-box" style="margin-top:10px">' + ic('alert') + '<div>هشدار پزشکی: ' + esc(p.alerts) + '</div></div>';
-    h += '<div class="row wrap" style="margin-top:12px"><button class="btn primary" data-act="newAppt" data-pid="' + p.id + '">' + ic('plus') + 'نوبت جدید</button>' +
+    var h = '<div class="card"><div class="prof"><div class="avatar lg">' + esc(initials(p.name)) + '</div><div class="grow">' +
+      '<div class="nm">' + esc(p.name) + '</div><div class="small muted num">پرونده ' + fa(p.fileNo || '-') + (age !== '' ? ' · ' + fa(age) + ' ساله' : '') + (p.gender ? ' · ' + (p.gender === 'm' ? 'آقا' : 'خانم') : '') + '</div>' +
+      (p.phone ? '<div class="small muted num">' + fa(p.phone) + '</div>' : '') + '</div>' +
+      (p.phone ? '<button class="icon-pill" data-act="call" data-p="' + esc(p.phone) + '" title="تماس">' + ic('phone') + '</button><button class="icon-pill" data-act="smsTo" data-p="' + esc(p.phone) + '" title="پیامک">' + ic('sms') + '</button>' : '') + '</div>';
+    if (p.alerts) h += '<div class="alert-box" style="margin-top:12px">' + ic('alert') + '<div>هشدار پزشکی: ' + esc(p.alerts) + '</div></div>';
+    h += '<div class="row wrap" style="margin-top:14px"><button class="btn primary" data-act="newAppt" data-pid="' + p.id + '">' + ic('plus') + 'نوبت جدید</button>' +
       '<button class="btn" data-act="addPayment" data-pid="' + p.id + '">' + ic('money') + 'ثبت پرداخت</button>' +
-      '<div class="grow"></div><div class="small">مانده حساب: <b class="num" style="color:' + (b.due > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + money(b.due) + '</b> <span class="muted">تومان</span></div></div></div>';
+      '<div class="grow"></div><div class="small">مانده: <b class="num" style="color:' + (b.due > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + money(b.due) + '</b> <span class="muted">تومان</span></div></div></div>';
 
-    var tabs = [['info', 'اطلاعات'], ['appts', 'نوبت‌ها'], ['teeth', 'درمان‌ها'], ['money', 'مالی']];
-    h += '<div class="card"><div class="tabs">' + tabs.map(function (t) { return '<button class="tab' + (ui.ptab === t[0] ? ' active' : '') + '" data-act="ptab" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
-    h += PTABS[ui.ptab](p, b) + '</div>';
+    var tabs = [['info', 'اطلاعات'], ['teeth', 'دندان‌ها'], ['appts', 'نوبت‌ها'], ['money', 'مالی']];
+    h += '<div class="seg" style="margin:16px 0 14px">' + tabs.map(function (t) { return '<button class="' + (ui.ptab === t[0] ? 'active' : '') + '" data-act="ptab" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
+    h += ui.ptab === 'teeth' ? PTABS.teeth(p, b) : '<div class="card">' + PTABS[ui.ptab](p, b) + '</div>';
     return h;
   };
   var PTABS = {};
@@ -458,27 +556,78 @@
   };
   var UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
   var LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
-  PTABS.teeth = function (p) {
-    var tr = treatmentsOf(p.id), byTooth = {};
-    tr.forEach(function (t) { if (t.tooth) String(t.tooth).split(',').forEach(function (n) { n = n.trim(); (byTooth[n] = byTooth[n] || []).push(t); }); });
-    function tooth(n, low) {
-      var l = byTooth[n] || [], cls = l.length ? (l.every(function (t) { return t.status === 'done'; }) ? ' donet' : ' has') : '';
-      return '<div class="tooth' + (low ? ' low' : '') + cls + (ui.tooth === String(n) ? ' sel' : '') + '" data-act="toothClick" data-n="' + n + '" title="' + l.map(function (t) { return t.title; }).join('، ') + '">' + fa(n) + '</div>';
+  // [عرض، عمق] هر دندان بر اساس رقم دوم شماره FDI
+  var TW = { 8: [23, 25], 7: [24, 26], 6: [25, 27], 5: [18, 22], 4: [18, 22], 3: [16, 21], 2: [13, 18], 1: [16, 19] };
+  function jawSVG(status, sel) {
+    var cx = 180, rx = 150, ry = 132, T0 = 0.36, out = '';
+    var defs = '<defs>' +
+      '<linearGradient id="jn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--tooth-a)"/><stop offset="1" style="stop-color:var(--tooth-b)"/></linearGradient>' +
+      '<linearGradient id="jp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff6df"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>' +
+      '<linearGradient id="jd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ecfdf9"/><stop offset="1" stop-color="#8fe0d2"/></linearGradient>' +
+      '<filter id="js" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#0d5e56" flood-opacity=".18"/></filter></defs>';
+    function arch(list, cy, up) {
+      var N = 240, pts = [], len = [0], i;
+      for (i = 0; i <= N; i++) {
+        var th = (Math.PI - T0) - (Math.PI - 2 * T0) * i / N;
+        var x = cx + rx * Math.cos(th), y = cy + (up ? -1 : 1) * ry * Math.sin(th);
+        pts.push([x, y]);
+        if (i) len.push(len[i - 1] + Math.hypot(x - pts[i - 1][0], y - pts[i - 1][1]));
+      }
+      var gap = 2.2, widths = list.map(function (n) { return TW[n % 10][0]; });
+      var sum = widths.reduce(function (s, w) { return s + w; }, 0) + gap * (list.length - 1);
+      var cur = (len[N] - sum) / 2;
+      var gum = 'M' + pts.filter(function (p, k) { return k % 6 === 0 || k === N; }).map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('L');
+      var g = '<path d="' + gum + '" fill="none" style="stroke:var(--gum-2)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="' + gum + '" fill="none" style="stroke:var(--gum)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>';
+      list.forEach(function (n, k) {
+        var w = widths[k], d = TW[n % 10][1], mid = cur + w / 2; cur += w + gap;
+        var j = 1; while (j < N && len[j] < mid) j++;
+        var f = (mid - len[j - 1]) / ((len[j] - len[j - 1]) || 1);
+        var x = pts[j - 1][0] + (pts[j][0] - pts[j - 1][0]) * f, y = pts[j - 1][1] + (pts[j][1] - pts[j - 1][1]) * f;
+        var ang = Math.atan2(pts[j][1] - pts[j - 1][1], pts[j][0] - pts[j - 1][0]) * 180 / Math.PI;
+        var st = status[n], fill = st === 'done' ? 'url(#jd)' : st === 'plan' ? 'url(#jp)' : 'url(#jn)';
+        var stroke = st === 'done' ? 'var(--primary)' : st === 'plan' ? '#e2a43a' : 'var(--tooth-line)';
+        var r = n % 10 >= 4 ? 8 : 6;
+        var vx = cx - x, vy = cy - y, vd = Math.hypot(vx, vy) || 1, lo = d / 2 + 11;
+        g += '<g class="tg' + (sel === String(n) ? ' sel' : '') + '" data-act="toothClick" data-n="' + n + '"><title>دندان ' + n + '</title>' +
+          '<g transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + ang.toFixed(1) + ')" filter="url(#js)">' +
+          '<rect class="tb" x="' + (-w / 2) + '" y="' + (-d / 2) + '" width="' + w + '" height="' + d + '" rx="' + r + '" fill="' + fill + '" style="stroke:' + stroke + '" stroke-width="1.4"/>' +
+          '<ellipse cx="' + (-w * .14).toFixed(1) + '" cy="' + (-d * .17).toFixed(1) + '" rx="' + (w * .22).toFixed(1) + '" ry="' + (d * .14).toFixed(1) + '" fill="#fff" opacity=".75"/></g>' +
+          '<text class="tl" x="' + (x + vx / vd * lo).toFixed(1) + '" y="' + (y + vy / vd * lo).toFixed(1) + '" text-anchor="middle" dominant-baseline="central">' + fa(n) + '</text></g>';
+      });
+      return g;
     }
-    var h = '<div class="small muted" style="margin-bottom:6px">روی دندان بزنید تا درمان‌هایش را ببینید یا درمان جدید ثبت کنید. <span class="badge st-arrived">برنامه‌ریزی‌شده</span> <span class="badge st-done">انجام‌شده</span></div>';
-    h += '<div style="direction:ltr;display:flex;justify-content:space-between" class="tiny muted"><span>راست بیمار</span><span>چپ بیمار</span></div>';
-    h += '<div class="teeth">' + UPPER.map(function (n) { return tooth(n); }).join('') + '<div class="jaw-sep"></div>' + LOWER.map(function (n) { return tooth(n, true); }).join('') + '</div>';
+    out += arch(UPPER, 150, true) + arch(LOWER, 170, false);
+    out += '<text x="180" y="132" class="tl" text-anchor="middle" dominant-baseline="central">فک بالا</text><text x="180" y="188" class="tl" text-anchor="middle" dominant-baseline="central">فک پایین</text>' +
+      '<text x="16" y="160" class="tl" text-anchor="middle" dominant-baseline="central">راست</text><text x="344" y="160" class="tl" text-anchor="middle" dominant-baseline="central">چپ</text>';
+    return '<svg class="jaw" viewBox="0 0 360 322" xmlns="http://www.w3.org/2000/svg">' + defs + out + '</svg>';
+  }
+  PTABS.teeth = function (p, b) {
+    var tr = treatmentsOf(p.id), byTooth = {}, status = {};
+    tr.forEach(function (t) { if (t.tooth) String(t.tooth).split(',').forEach(function (n) { n = n.trim(); if (n) (byTooth[n] = byTooth[n] || []).push(t); }); });
+    Object.keys(byTooth).forEach(function (n) { status[n] = byTooth[n].every(function (t) { return t.status === 'done'; }) ? 'done' : 'plan'; });
+    var h = '<div class="card"><div class="jaw-wrap"><div class="jaw-plate">' + jawSVG(status, ui.tooth) + '</div></div>' +
+      '<div class="legend"><span><i style="background:var(--tooth-b);border:1px solid var(--tooth-line)"></i>بدون درمان</span><span><i style="background:#ffd27a"></i>طرح درمان</span><span><i style="background:#8fe0d2"></i>درمان‌شده</span></div>' +
+      '<div class="tiny muted" style="text-align:center;margin-top:6px">روی هر دندان بزنید تا درمان‌هایش نمایش داده شود</div></div>';
+    var doneN = tr.filter(function (t) { return t.status === 'done'; }).length, planN = tr.length - doneN;
+    var pct = tr.length ? Math.round(doneN / tr.length * 100) : 0;
+    var label = !tr.length ? 'بدون طرح درمان' : pct === 100 ? 'درمان کامل شده' : pct >= 50 ? 'رو به اتمام' : 'در حال درمان';
+    h += '<div class="card" style="margin-top:14px"><div class="small muted">وضعیت کلی درمان</div><div class="row"><b class="grow" style="font-size:17px">' + label + '</b><b class="num" style="color:var(--primary)">٪' + fa(pct) + '</b></div><div class="progress"><div style="width:' + pct + '%"></div></div></div>';
+    h += '<div class="tiles3"><div class="tile"><div class="l">انجام‌شده</div><div class="v num">' + fa(doneN) + '</div></div><div class="tile"><div class="l">در انتظار</div><div class="v num">' + fa(planN) + '</div></div>' +
+      '<div class="tile"><div class="l">مانده حساب</div><div class="v num" style="font-size:15px;line-height:1.9;color:' + (b.due > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + money(b.due) + '</div></div></div>';
     var shown = ui.tooth ? (byTooth[ui.tooth] || []) : tr;
-    h += '<div class="row" style="margin:16px 0 6px"><b class="grow">' + (ui.tooth ? 'درمان‌های دندان ' + fa(ui.tooth) + ' <button class="btn sm ghost" data-act="toothClick" data-n="' + ui.tooth + '">همه</button>' : 'همه درمان‌ها') + '</b>' +
-      '<button class="btn sm primary" data-act="editTreatment" data-pid="' + p.id + '"' + (ui.tooth ? ' data-tooth="' + ui.tooth + '"' : '') + '>' + ic('plus') + 'درمان</button></div>';
+    h += '<div class="sec-h"><b>' + (ui.tooth ? 'درمان‌های دندان ' + fa(ui.tooth) : 'همه درمان‌ها') + '</b>' + (ui.tooth ? '<button class="link" data-act="toothClick" data-n="' + ui.tooth + '" style="margin-inline-end:10px">نمایش همه</button>' : '') +
+      '<button class="btn sm primary" data-act="editTreatment" data-pid="' + p.id + '"' + (ui.tooth ? ' data-tooth="' + ui.tooth + '"' : '') + '>' + ic('plus') + 'درمان</button></div><div class="card" style="padding:8px 12px">';
     if (!shown.length) h += '<div class="empty" style="padding:16px">' + ic('tooth') + 'درمانی ثبت نشده</div>';
     else h += '<div class="list">' + shown.map(function (t) {
       return '<div class="li" data-act="editTreatment" data-id="' + t.id + '"><div class="grow"><div class="t">' + esc(t.title) + (t.tooth ? ' <span class="muted small num">(دندان ' + fa(t.tooth) + ')</span>' : '') + '</div>' +
         '<div class="s num">' + J.jStr(t.date) + (t.doctorId ? ' · ' + esc(dName(t.doctorId)) : '') + (t.note ? ' · ' + esc(t.note) : '') + '</div></div><div style="text-align:left"><div class="num small">' + money(t.price) + '</div>' +
-        '<span class="badge ' + (t.status === 'done' ? 'st-done' : 'st-arrived') + '">' + (t.status === 'done' ? 'انجام‌شده' : 'برنامه‌ریزی') + '</span></div></div>';
+        '<span class="badge ' + (t.status === 'done' ? 'st-done' : 'st-arrived') + '">' + (t.status === 'done' ? 'انجام‌شده' : 'طرح درمان') + '</span></div></div>';
     }).join('') + '</div>';
+    h += '</div>';
     var planned = tr.filter(function (t) { return t.status !== 'done'; }), pt = 0; planned.forEach(function (t) { pt += t.price || 0; });
-    if (planned.length) h += '<div class="note-box" style="margin-top:10px">طرح درمان باقی‌مانده: ' + fa(planned.length) + ' مورد، برآورد ' + money(pt) + ' تومان</div>';
+    if (planned.length) h += '<div class="note-box" style="margin-top:12px">طرح درمان باقی‌مانده: ' + fa(planned.length) + ' مورد، برآورد ' + money(pt) + ' تومان</div>';
+    h += '<button class="btn cta" style="margin-top:16px" data-act="printStatement" data-pid="' + p.id + '">مشاهده گزارش کامل<span class="arr">' + ic('left') + '</span></button>';
     return h;
   };
   PTABS.money = function (p, b) {
@@ -568,30 +717,79 @@
     return h;
   };
 
-  // ================= بیشتر (موبایل) =================
+  // ================= پروفایل / تنظیمات =================
+  function mi(act, attrs, icon, cls, label, hint) {
+    return '<button class="mi" data-act="' + act + '"' + (attrs || '') + '><span class="ic ' + (cls || '') + '">' + ic(icon) + '</span><span class="lb">' + label + (hint ? '<div class="hint">' + hint + '</div>' : '') + '</span>' + ic('left', ' class="chev"') + '</button>';
+  }
   VIEWS.more = function () {
-    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    var h = '<div class="more-grid">' +
-      '<button data-act="nav" data-v="waitlist">' + ic('hourglass') + 'لیست انتظار</button>' +
-      '<button data-act="nav" data-v="settings">' + ic('settings') + 'تنظیمات</button>' +
-      '<button data-act="theme">' + ic(dark ? 'sun' : 'moon') + (dark ? 'پوسته روشن' : 'پوسته تیره') + '</button>' +
-      '<button data-act="printDay">' + ic('print') + 'چاپ برنامه امروز</button>' +
-      '<button data-act="backup">' + ic('download') + 'پشتیبان‌گیری</button>' +
-      (S.mode === 'cloud' ? '<button data-act="logout">' + ic('logout') + 'خروج</button>' : '<button data-act="setTab" data-t="sync">' + ic('cloud') + 'همگام‌سازی ابری</button>') + '</div>';
-    if (S.user) h += '<div class="small muted" style="text-align:center;margin-top:16px">وارد شده با کاربر <b>' + esc(S.user.username) + '</b></div>';
+    var st = settings(), me = myName();
+    var h = '<div class="card"><div class="prof"><div class="avatar lg">' + esc(initials(me)) + '</div><div class="grow"><div class="nm">' + esc(me) + '</div><div class="small muted">' + esc(st.clinicName) + '</div>' +
+      '<div class="tiny muted">' + (S.user ? roleName(role()) + ' · ' + esc(S.user.username) : 'حالت محلی · فقط همین دستگاه') + '</div></div><button class="icon-pill" data-act="setTab" data-t="clinic" title="ویرایش">' + ic('edit') + '</button></div></div>';
+    h += '<div class="sec-h"><b>مطب</b></div><div class="card menu">' +
+      mi('setTab', ' data-t="clinic"', 'home', '', 'اطلاعات مطب', esc(st.phone ? fa(st.phone) : 'نام، تلفن و آدرس')) +
+      mi('setTab', ' data-t="hours"', 'clock', 'c5', 'ساعات کاری', fa(st.start) + ' تا ' + fa(st.end)) +
+      mi('setTab', ' data-t="doctors"', 'user', 'c3', 'پزشکان', fa(doctors().length) + ' پزشک فعال') +
+      mi('nav', ' data-v="services"', 'tooth', 'c4', 'خدمات و تعرفه‌ها', fa(services().length) + ' خدمت') +
+      mi('nav', ' data-v="waitlist"', 'hourglass', '', 'لیست انتظار', fa(S.all('waitlist').length) + ' نفر') + '</div>';
+    h += '<div class="sec-h"><b>ارتباط و داده‌ها</b></div><div class="card menu">' +
+      mi('setTab', ' data-t="sms"', 'sms', '', 'متن پیامک یادآوری', '') +
+      mi('setTab', ' data-t="sync"', 'cloud', 'c3', 'همگام‌سازی و کاربران', S.mode === 'cloud' ? 'آنلاین (Supabase)' : 'حالت محلی') +
+      mi('setTab', ' data-t="backup"', 'download', 'c5', 'پشتیبان‌گیری و خروجی اکسل', '') +
+      mi('printDay', '', 'print', 'c4', 'چاپ برنامه امروز', '') + '</div>';
+    h += '<div class="sec-h"><b>نمایش</b></div><div class="card menu"><label class="mi"><span class="ic c3">' + ic('moon') + '</span><span class="lb">حالت تیره</span>' +
+      '<span class="switch"><input type="checkbox" data-chg="theme"' + (isDark() ? ' checked' : '') + '><span></span></span></label>' +
+      (S.mode === 'cloud' ? mi('logout', '', 'logout', 'c6', 'خروج از حساب', '') : '') + '</div>';
+    h += '<div class="tiny muted" style="text-align:center;margin-top:18px">دنتینو · نرم‌افزار نوبت‌دهی مطب</div>';
     return h;
   };
 
-  // ================= تنظیمات =================
   VIEWS.settings = function () {
-    var tabs = [['clinic', 'مطب'], ['hours', 'ساعات کاری'], ['doctors', 'پزشکان'], ['services', 'خدمات'], ['sms', 'پیامک'], ['sync', 'همگام‌سازی و کاربران'], ['backup', 'پشتیبان']];
-    var h = '<div class="tabs">' + tabs.map(function (t) { return '<button class="tab' + (ui.setTab === t[0] ? ' active' : '') + '" data-act="setTab" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
-    return h + '<div class="card">' + SET[ui.setTab]() + '</div>';
+    return '<div class="card">' + SET[ui.setTab]() + '</div>';
   };
+
+  // ================= خدمات =================
+  var SVC_CATS = [['all', 'همه'], ['general', 'عمومی'], ['cosmetic', 'زیبایی'], ['ortho', 'ارتودنسی'], ['surgery', 'جراحی و ایمپلنت'], ['kids', 'کودکان']];
+  var SVC_DESC = {
+    'معاینه و مشاوره': 'معاینه کامل دهان و دندان و ارائه طرح درمان', 'جرم‌گیری و بروساژ': 'پاکسازی جرم و پلاک و براق کردن سطح دندان‌ها',
+    'ترمیم کامپوزیت': 'پر کردن دندان با مواد هم‌رنگ دندان', 'ترمیم آمالگام': 'پر کردن دندان‌های عقب با آمالگام', 'عصب‌کشی (درمان ریشه)': 'درمان ریشه و حفظ دندان آسیب‌دیده',
+    'کشیدن دندان': 'خارج کردن دندان غیرقابل نگهداری', 'جراحی دندان عقل': 'جراحی و خارج کردن دندان عقل نهفته', 'روکش': 'پوشش و محافظت از دندان ضعیف یا درمان‌شده',
+    'ایمپلنت': 'جایگزینی دائمی دندان ازدست‌رفته', 'بلیچینگ (سفید کردن)': 'روشن‌تر کردن رنگ دندان‌ها به‌صورت ایمن', 'ارتودنسی - ویزیت': 'کنترل و تنظیم براکت یا الاینر',
+    'دندانپزشکی کودکان': 'درمان و مراقبت از دندان‌های شیری', 'رادیوگرافی': 'عکس دندان برای تشخیص دقیق‌تر'
+  };
+  function svcCat(s) {
+    if (s.category) return s.category;
+    var n = s.name || '';
+    if (/ارتودنسی|براکت|الاینر/.test(n)) return 'ortho';
+    if (/ایمپلنت|جراحی|کشیدن|عقل/.test(n)) return 'surgery';
+    if (/بلیچ|سفید|لمینت|ونیر|جرم|بروساژ/.test(n)) return 'cosmetic';
+    if (/کودک/.test(n)) return 'kids';
+    return 'general';
+  }
+  function svcKind(s) {
+    var n = s.name || '', c = svcCat(s);
+    if (/ایمپلنت/.test(n)) return 'implant';
+    if (c === 'cosmetic') return /جرم|بروساژ/.test(n) ? 'clean' : 'white';
+    return { ortho: 'ortho', surgery: 'surgery', kids: 'kids' }[c] || 'general';
+  }
+  VIEWS.services = function () {
+    var q = normText(ui.sq || ''), cat = ui.scat || 'all';
+    var list = services().filter(function (s) { return (cat === 'all' || svcCat(s) === cat) && (!q || normText(s.name).indexOf(q) > -1); });
+    var h = '<div class="search">' + ic('search') + '<input class="input" id="sq" data-in="sq" placeholder="جستجوی خدمت…" value="' + esc(ui.sq || '') + '"></div>';
+    h += '<div class="chips" style="margin:14px 0 14px">' + SVC_CATS.map(function (c) { return '<button class="chip' + (cat === c[0] ? ' active' : '') + '" data-act="svcCat" data-c="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>';
+    if (!list.length) return h + '<div class="card"><div class="empty">' + ic('tooth') + 'خدمتی پیدا نشد</div></div>';
+    h += '<div class="grid g2 svc-grid">' + list.map(function (s) {
+      return '<div class="card svc" data-act="editService" data-id="' + s.id + '"><div class="art">' + toothSVG({ kind: svcKind(s) }) + '</div><div class="grow"><div class="nm">' + esc(s.name) + '</div>' +
+        '<div class="ds">' + esc(s.desc || SVC_DESC[s.name] || '') + '</div><div class="pr num">' + (s.price ? money(s.price) + ' <small>تومان</small>' : '<small>تعرفه ثبت نشده</small>') + ' <small>· ' + fa(s.duration || 30) + ' دقیقه</small></div></div>' +
+        '<button class="circle-btn" data-act="svcBook" data-id="' + s.id + '" title="رزرو نوبت">' + ic('left') + '</button></div>';
+    }).join('') + '</div>';
+    return h;
+  };
+
   var SET = {};
   SET.clinic = function () {
     var s = settings();
     return '<div class="stack"><label class="f"><span>نام مطب</span><input class="input" id="s_name" value="' + esc(s.clinicName) + '"></label>' +
+      '<label class="f"><span>نام شما (برای خوش‌آمدگویی صفحه خانه)</span><input class="input" id="s_greet" placeholder="مثلاً: خانم احمدی" value="' + esc(s.greetName || '') + '"></label>' +
       '<label class="f"><span>تلفن مطب</span><input class="input ltr" id="s_phone" inputmode="tel" value="' + esc(s.phone) + '"></label>' +
       '<label class="f"><span>آدرس</span><textarea class="input" id="s_addr">' + esc(s.address) + '</textarea></label>' +
       '<button class="btn primary" data-act="saveClinic">ذخیره</button></div>';
@@ -663,7 +861,10 @@
   // ================= مودال =================
   function openModal(o) {
     var ov = document.createElement('div'); ov.className = 'overlay';
-    ov.innerHTML = '<div class="modal' + (o.wide ? ' wide' : '') + '"><div class="modal-h"><h3>' + o.title + '</h3><button class="btn icon ghost" data-act="closeModal">' + ic('x') + '</button></div>' +
+    var head = o.full
+      ? '<div class="modal-h"><button class="icon-pill" data-act="closeModal" title="بازگشت">' + ic('right') + '</button><h3>' + o.title + '</h3><span></span></div>'
+      : '<div class="modal-h"><h3>' + o.title + '</h3><button class="btn icon ghost" data-act="closeModal">' + ic('x') + '</button></div>';
+    ov.innerHTML = '<div class="modal' + (o.wide ? ' wide' : '') + (o.full ? ' full' : '') + '">' + head +
       '<div class="modal-b">' + o.body + '</div>' + (o.foot ? '<div class="modal-f">' + o.foot + '</div>' : '') + '</div>';
     ov.addEventListener('mousedown', function (e) { if (e.target === ov) closeModal(); });
     document.body.appendChild(ov);
@@ -709,101 +910,155 @@
     var st = settings(), docs = doctors(), svcs = services();
     a = a ? Object.assign({}, a) : {
       patientId: preset.pid || null, doctorId: preset.doc || (ui.doc !== 'all' ? ui.doc : (docs[0] && docs[0].id)), date: preset.date || ui.date,
-      time: preset.time || '', duration: 30, serviceId: '', status: 'booked', notes: preset.notes || ''
+      time: preset.time || '', duration: 30, serviceId: preset.svc || '', status: 'booked', notes: preset.notes || ''
     };
+    if (isNew && a.serviceId) { var ps = S.get('services', a.serviceId); if (ps && ps.duration) a.duration = +ps.duration; }
     var newP = preset.newName ? { name: preset.newName, phone: preset.newPhone || '' } : null;
+    var durs = [10, 15, 20, 30, 45, 60, 75, 90, 120, 150, 180];
+    if (durs.indexOf(+a.duration) < 0) durs.push(+a.duration);
+    durs.sort(function (x, y) { return x - y; });
     var body =
-      '<div class="stack"><div id="afPatient"></div>' +
-      '<div class="grid g2 keep"><label class="f"><span>پزشک</span><select class="input" id="afDoc">' + docs.map(function (d) { return '<option value="' + d.id + '"' + (d.id === a.doctorId ? ' selected' : '') + '>' + esc(d.name) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="f"><span>خدمت</span><select class="input" id="afSvc"><option value="">— انتخاب —</option>' + svcs.map(function (s) { return '<option value="' + s.id + '"' + (s.id === a.serviceId ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select></label></div>' +
-      '<div class="grid g2 keep"><label class="f"><span>تاریخ</span><button type="button" class="input" id="afDate" style="text-align:right;cursor:pointer"></button></label>' +
-      '<label class="f"><span>مدت</span><select class="input" id="afDur">' + [10, 15, 20, 30, 45, 60, 75, 90, 120, 150, 180].map(function (n) { return '<option value="' + n + '"' + (+a.duration === n ? ' selected' : '') + '>' + fa(n) + ' دقیقه</option>'; }).join('') + '</select></label></div>' +
-      '<div><div class="row" style="margin-bottom:4px"><span class="small muted grow">ساعت</span><input class="input ltr num" id="afTime" type="time" style="width:120px;min-height:34px;padding:4px 8px" value="' + (a.time || '') + '"></div><div class="timepick" id="afSlots"></div></div>' +
-      '<div id="afWarn"></div>' +
-      (isNew ? '' : '<label class="f"><span>وضعیت</span><select class="input" id="afSt">' + STATUS_ORDER.map(function (s) { return '<option value="' + s + '"' + (s === a.status ? ' selected' : '') + '>' + STATUS[s] + '</option>'; }).join('') + '</select></label>') +
-      '<label class="f"><span>یادداشت</span><textarea class="input" id="afNotes" placeholder="مثلاً: درد دندان ۳۶، نیاز به عکس">' + esc(a.notes || '') + '</textarea></label></div>';
+      '<div id="afPatient" class="bk-sec"></div>' +
+      '<div class="bk-sec"><div class="f-l">خدمت</div><div class="chips" id="afSvcs"></div><input type="hidden" id="afSvc"></div>' +
+      '<div class="bk-sec"><div class="f-l">تاریخ</div><div class="card cal-card" id="afCal"></div></div>' +
+      '<div class="bk-sec"><div class="row" style="margin-bottom:10px"><div class="f-l grow" style="margin:0">ساعت‌های خالی</div>' +
+      '<select class="input" id="afDur" style="width:auto;min-height:36px;padding:4px 12px;border-radius:999px;font-size:13px">' + durs.map(function (n) { return '<option value="' + n + '"' + (+a.duration === n ? ' selected' : '') + '>' + fa(n) + ' دقیقه</option>'; }).join('') + '</select></div>' +
+      '<div class="timepick" id="afSlots"></div><div class="row tiny muted" style="margin-top:10px">ساعت دلخواه:<input class="input ltr num" id="afTime" type="time" style="width:130px;min-height:36px;padding:4px 10px" value="' + (a.time || '') + '"></div></div>' +
+      '<div id="afWarn" class="bk-sec"></div>' +
+      '<div class="bk-sec"><div class="f-l">پزشک</div><div id="afDocs"></div><input type="hidden" id="afDoc"></div>' +
+      (isNew ? '' : '<div class="bk-sec"><label class="f"><span>وضعیت</span><select class="input" id="afSt">' + STATUS_ORDER.map(function (s) { return '<option value="' + s + '"' + (s === a.status ? ' selected' : '') + '>' + STATUS[s] + '</option>'; }).join('') + '</select></label></div>') +
+      '<div class="bk-sec"><label class="f"><span>یادداشت</span><textarea class="input" id="afNotes" placeholder="مثلاً: درد دندان ۳۶، نیاز به عکس">' + esc(a.notes || '') + '</textarea></label></div>';
     var m = openModal({
-      title: isNew ? 'نوبت جدید' : 'ویرایش نوبت', body: body,
-      foot: '<button class="btn primary" id="afSave">' + ic('check') + 'ثبت نوبت</button><button class="btn ghost" data-act="closeModal">انصراف</button>'
+      full: true, title: isNew ? 'رزرو نوبت' : 'ویرایش نوبت', body: body,
+      foot: '<button class="btn cta" id="afSave">' + (isNew ? 'تأیید نوبت' : 'ذخیره تغییرات') + '<span class="arr">' + ic('check') + '</span></button>'
     });
     var el = m.el;
+    $('#afDoc', el).value = a.doctorId || '';
+    $('#afSvc', el).value = a.serviceId || '';
+    var cj = J.toJ(a.date), vy = cj[0], vm = cj[1];
+
     function drawPatient() {
       var box = $('#afPatient', el);
       if (a.patientId) {
         var p = S.get('patients', a.patientId) || {};
-        box.innerHTML = '<div class="sel-patient"><div class="avatar">' + esc(initials(p.name)) + '</div><div class="grow"><b>' + esc(p.name) + '</b><div class="tiny muted num">' + fa(p.phone || '') + ' · پرونده ' + fa(p.fileNo || '') + '</div></div><button class="btn sm ghost" id="afChange">تغییر</button></div>' +
-          (p.alerts ? '<div class="alert-box" style="margin-top:6px">' + ic('alert') + '<div>' + esc(p.alerts) + '</div></div>' : '');
+        box.innerHTML = '<div class="f-l">بیمار</div><div class="sel-patient"><div class="avatar">' + esc(initials(p.name)) + '</div><div class="grow"><b>' + esc(p.name) + '</b><div class="tiny muted num">' + fa(p.phone || '') + ' · پرونده ' + fa(p.fileNo || '') + '</div></div><button class="btn sm ghost" id="afChange">تغییر</button></div>' +
+          (p.alerts ? '<div class="alert-box" style="margin-top:8px">' + ic('alert') + '<div>' + esc(p.alerts) + '</div></div>' : '');
         $('#afChange', el).onclick = function () { a.patientId = null; drawPatient(); };
       } else if (newP) {
-        box.innerHTML = '<div class="small muted" style="margin-bottom:4px">بیمار جدید <button class="btn sm ghost" id="afBack">جستجوی بیمار موجود</button></div><div class="grid g2 keep">' +
+        box.innerHTML = '<div class="row" style="margin-bottom:6px"><div class="f-l grow" style="margin:0">بیمار جدید</div><button class="btn sm ghost" id="afBack">جستجوی بیمار موجود</button></div><div class="grid g2 keep">' +
           '<input class="input" id="afNName" placeholder="نام و نام خانوادگی" value="' + esc(newP.name) + '"><input class="input ltr" id="afNPhone" inputmode="tel" placeholder="موبایل" value="' + esc(newP.phone) + '"></div>';
         $('#afBack', el).onclick = function () { newP = null; drawPatient(); };
         $('#afNName', el).oninput = function () { newP.name = this.value; };
         $('#afNPhone', el).oninput = function () { newP.phone = this.value; };
         setTimeout(function () { $('#afNName', el).focus(); }, 50);
       } else {
-        box.innerHTML = '<label class="f"><span>بیمار</span><div class="search">' + ic('search') + '<input class="input" id="afQ" placeholder="نام، موبایل یا شماره پرونده..." autocomplete="off"></div></label><div id="afRes"></div>';
+        box.innerHTML = '<div class="f-l">بیمار</div><div class="search">' + ic('search') + '<input class="input" id="afQ" placeholder="نام، موبایل یا شماره پرونده…" autocomplete="off"></div><div id="afRes"></div>';
         var q = $('#afQ', el);
         q.oninput = function () {
           var t = normText(q.value), d = digitsOnly(q.value), res = $('#afRes', el);
           if (!t) { res.innerHTML = ''; return; }
           var list = patients().filter(function (p) { return normText(p.name).indexOf(t) > -1 || (d && digitsOnly(p.phone).indexOf(d) > -1) || String(p.fileNo) === d; }).slice(0, 8);
           res.innerHTML = '<div class="ac-list">' + list.map(function (p) { return '<div class="ac-item" data-pid="' + p.id + '"><b>' + esc(p.name) + '</b> <span class="tiny muted num">' + fa(p.phone || '') + ' · پرونده ' + fa(p.fileNo || '') + '</span></div>'; }).join('') +
-            '<div class="ac-item" data-new="1" style="color:var(--primary);font-weight:700">+ ثبت «' + esc(q.value) + '» به عنوان بیمار جدید</div></div>';
+            '<div class="ac-item" data-new="1" style="color:var(--primary);font-weight:800">+ ثبت «' + esc(q.value) + '» به عنوان بیمار جدید</div></div>';
           $$('.ac-item', res).forEach(function (it) {
             it.onclick = function () {
               if (it.getAttribute('data-new')) { var isNum = /^\d+$/.test(d) && d.length >= 4 && !t.replace(/[\d\s]/g, ''); newP = { name: isNum ? '' : q.value, phone: isNum ? q.value : '' }; }
               else a.patientId = it.getAttribute('data-pid');
-              drawPatient();
+              drawPatient(); checkConflict();
             };
           });
         };
-        setTimeout(function () { q.focus(); }, 50);
+        if (isNew && !preset.time) setTimeout(function () { q.focus(); }, 80);
       }
     }
-    function drawDate() { $('#afDate', el).textContent = J.jLong(a.date); }
+    function drawSvcs() {
+      $('#afSvcs', el).innerHTML = '<button type="button" class="chip' + (!a.serviceId ? ' active' : '') + '" data-s="">بدون خدمت</button>' +
+        svcs.map(function (s) { return '<button type="button" class="chip' + (s.id === a.serviceId ? ' active' : '') + '" data-s="' + s.id + '">' + esc(s.name) + '</button>'; }).join('');
+      $$('#afSvcs .chip', el).forEach(function (b) {
+        b.onclick = function () {
+          a.serviceId = b.getAttribute('data-s'); $('#afSvc', el).value = a.serviceId;
+          var s = S.get('services', a.serviceId);
+          if (s && s.duration) {
+            var sel = $('#afDur', el);
+            if (!$$('option', sel).some(function (o) { return +o.value === +s.duration; })) sel.insertAdjacentHTML('beforeend', '<option value="' + s.duration + '">' + fa(s.duration) + ' دقیقه</option>');
+            sel.value = s.duration;
+          }
+          drawSvcs(); drawSlots();
+        };
+      });
+      var on = $('#afSvcs .chip.active', el); if (on && on.scrollIntoView && a.serviceId) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+    function drawCal() {
+      var first = J.fromJ(vy, vm, 1), col = J.faCol(first), len = J.monthLen(vy, vm), today = J.today(), doc = $('#afDoc', el).value;
+      var counts = {}; appts().forEach(function (x) { if (ACTIVE_ST(x) && x.doctorId === doc) counts[x.date] = (counts[x.date] || 0) + 1; });
+      var h = '<div class="datebar" style="margin-bottom:6px"><button type="button" class="btn icon ghost" id="acPrev">' + ic('right') + '</button><div class="title" style="cursor:default">' + J.MONTHS[vm - 1] + ' ' + fa(vy) + '</div><button type="button" class="btn icon ghost" id="acNext">' + ic('left') + '</button></div>';
+      h += '<div class="month">' + ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(function (x) { return '<div class="h">' + x + '</div>'; }).join('');
+      for (var i = 0; i < col; i++) h += '<div></div>';
+      for (var d = 1; d <= len; d++) {
+        var iso = J.fromJ(vy, vm, d);
+        h += '<button type="button" class="d' + (iso === a.date ? ' sel' : '') + (iso === today ? ' today' : '') + (J.weekday(iso) === 5 ? ' fri' : '') + (iso < today ? ' past' : '') + (counts[iso] ? ' has' : '') + '" data-dp="' + iso + '" title="' + (counts[iso] ? fa(counts[iso]) + ' نوبت' : '') + '"><span class="n">' + fa(d) + '</span><span class="c"></span></button>';
+      }
+      h += '</div>';
+      $('#afCal', el).innerHTML = h;
+      $('#acPrev', el).onclick = function () { vm--; if (vm < 1) { vm = 12; vy--; } drawCal(); };
+      $('#acNext', el).onclick = function () { vm++; if (vm > 12) { vm = 1; vy++; } drawCal(); };
+      $$('#afCal [data-dp]', el).forEach(function (b) { b.onclick = function () { a.date = b.getAttribute('data-dp'); drawCal(); drawDocs(); drawSlots(); }; });
+    }
+    function drawDocs() {
+      var doc = $('#afDoc', el).value;
+      $('#afDocs', el).innerHTML = docs.map(function (d) {
+        var n = apptsOn(a.date).filter(function (x) { return x.doctorId === d.id && ACTIVE_ST(x) && x.id !== a.id; }).length;
+        return '<div class="doc-card' + (d.id === doc ? ' on' : '') + '" data-doc="' + d.id + '"><div class="avatar" style="background:' + d.color + '">' + esc(initials(d.name.replace(/^دکتر\s*/, ''))) + '</div>' +
+          '<div class="grow"><b>' + esc(d.name) + '</b><div class="tiny muted">' + esc(d.specialty || '') + (d.specialty ? ' · ' : '') + (n ? fa(n) + ' نوبت در این روز' : 'روز خالی') + '</div></div><span class="chk">' + ic('check') + '</span></div>';
+      }).join('');
+      $$('#afDocs .doc-card', el).forEach(function (c) { c.onclick = function () { $('#afDoc', el).value = a.doctorId = c.getAttribute('data-doc'); drawDocs(); drawCal(); drawSlots(); }; });
+    }
     function drawSlots() {
       var start = t2m(st.start), end = t2m(st.end), slot = +st.slot || 15, dur = +$('#afDur', el).value;
+      var bs = st.breakStart ? t2m(st.breakStart) : -1, be = st.breakEnd ? t2m(st.breakEnd) : -1;
       var busy = apptsOn(a.date).filter(function (x) { return x.id !== a.id && x.doctorId === $('#afDoc', el).value && ACTIVE_ST(x) && x.status !== 'noshow'; });
-      var h = '', isToday = a.date === J.today(), nm = nowMin();
+      var h = '', isToday = a.date === J.today(), nm = nowMin(), free = 0;
       for (var m = start; m < end; m += slot) {
+        if (bs >= 0 && m >= bs && m < be && m2t(m) !== a.time) continue;
         var e = m + dur, clash = busy.some(function (x) { var s = t2m(x.time), xe = s + (+x.duration || 30); return m < xe && e > s; });
         if (isToday && m < nm - slot && m2t(m) !== a.time) continue;
+        if (!clash) free++;
         h += '<button type="button" class="num' + (clash ? ' busy' : '') + (m2t(m) === a.time ? ' on' : '') + '" data-t="' + m2t(m) + '">' + fa(m2t(m)) + '</button>';
       }
-      $('#afSlots', el).innerHTML = h || '<div class="tiny muted">ساعتی باقی نمانده؛ ساعت را دستی وارد کنید.</div>';
+      $('#afSlots', el).innerHTML = h || '<div class="tiny muted" style="grid-column:1/-1">ساعتی باقی نمانده؛ ساعت را دستی وارد کنید.</div>';
       $$('#afSlots button', el).forEach(function (b) { b.onclick = function () { a.time = b.getAttribute('data-t'); $('#afTime', el).value = a.time; drawSlots(); }; });
       checkConflict();
     }
     function checkConflict() {
       var w = $('#afWarn', el), doc = $('#afDoc', el).value, dur = +$('#afDur', el).value;
-      if (!a.time) { w.innerHTML = ''; return; }
-      var s = t2m(a.time), e = s + dur;
-      var c = apptsOn(a.date).filter(function (x) { return x.id !== a.id && x.doctorId === doc && ACTIVE_ST(x) && x.status !== 'noshow'; }).filter(function (x) { var xs = t2m(x.time), xe = xs + (+x.duration || 30); return s < xe && e > xs; });
       var msgs = [];
-      if (c.length) msgs.push('تداخل با نوبت ' + c.map(function (x) { return esc(pName(x.patientId)) + ' (' + fa(x.time) + ')'; }).join('، '));
+      if (settings().workDays.indexOf(J.weekday(a.date)) < 0) msgs.push('این روز تعطیل مطب است');
+      if (a.time) {
+        var s = t2m(a.time), e = s + dur;
+        var c = apptsOn(a.date).filter(function (x) { return x.id !== a.id && x.doctorId === doc && ACTIVE_ST(x) && x.status !== 'noshow'; }).filter(function (x) { var xs = t2m(x.time), xe = xs + (+x.duration || 30); return s < xe && e > xs; });
+        if (c.length) msgs.push('تداخل با نوبت ' + c.map(function (x) { return esc(pName(x.patientId)) + ' (' + fa(x.time) + ')'; }).join('، '));
+      }
       if (a.patientId) {
         var other = apptsOn(a.date).filter(function (x) { return x.id !== a.id && x.patientId === a.patientId && ACTIVE_ST(x); });
         if (other.length) msgs.push('این بیمار در همین روز نوبت دیگری هم دارد (' + other.map(function (x) { return fa(x.time); }).join('، ') + ')');
       }
-      if (settings().workDays.indexOf(J.weekday(a.date)) < 0) msgs.push('این روز تعطیل مطب است');
       w.innerHTML = msgs.length ? '<div class="note-box">' + msgs.join('<br>') + '</div>' : '';
+      w.style.display = msgs.length ? '' : 'none';
     }
-    drawPatient(); drawDate(); drawSlots();
-    $('#afDate', el).onclick = function () { datePicker(a.date, function (d) { a.date = d; drawDate(); drawSlots(); }); };
-    $('#afDoc', el).onchange = drawSlots;
+    drawPatient(); drawSvcs(); drawCal(); drawDocs(); drawSlots();
     $('#afDur', el).onchange = drawSlots;
     $('#afTime', el).onchange = function () { a.time = this.value; drawSlots(); };
-    $('#afSvc', el).onchange = function () { var s = S.get('services', this.value); if (s && s.duration) { var sel = $('#afDur', el); if (!$$('option', sel).some(function (o) { return +o.value === +s.duration; })) sel.insertAdjacentHTML('beforeend', '<option value="' + s.duration + '">' + fa(s.duration) + ' دقیقه</option>'); sel.value = s.duration; drawSlots(); } };
+    if (a.time) setTimeout(function () { var on = $('#afSlots button.on', el); if (on) on.scrollIntoView({ block: 'nearest' }); }, 60);
     $('#afSave', el).onclick = function () {
       if (!a.patientId) {
-        if (!newP || !newP.name.trim()) { toast('بیمار را انتخاب یا ثبت کنید'); return; }
+        if (!newP || !newP.name.trim()) { toast('بیمار را انتخاب یا ثبت کنید'); $('#afPatient', el).scrollIntoView({ behavior: 'smooth' }); return; }
         var dup = newP.phone && patients().find(function (p) { return normPhone(p.phone) === normPhone(newP.phone); });
         if (dup) { a.patientId = dup.id; toast('بیمار با این شماره قبلاً ثبت شده بود: ' + dup.name); }
         else a.patientId = S.save('patients', { name: newP.name.trim(), phone: normPhone(newP.phone), fileNo: nextFileNo() }).id;
       }
       a.time = $('#afTime', el).value || a.time;
-      if (!a.time) { toast('ساعت نوبت را انتخاب کنید'); return; }
+      if (!a.time) { toast('ساعت نوبت را انتخاب کنید'); $('#afSlots', el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      if (!$('#afDoc', el).value) { toast('پزشک را انتخاب کنید'); return; }
       a.doctorId = $('#afDoc', el).value; a.serviceId = $('#afSvc', el).value; a.duration = +$('#afDur', el).value; a.notes = $('#afNotes', el).value.trim();
       if (!isNew) a.status = $('#afSt', el).value;
       if (preset.waitId) S.remove('waitlist', preset.waitId);
@@ -993,12 +1248,14 @@
     openModal({ title: id ? 'ویرایش خدمت' : 'خدمت جدید',
       body: '<div class="stack"><label class="f"><span>نام خدمت *</span><input class="input" id="sf_n" value="' + esc(s.name || '') + '"></label><div class="grid g2 keep">' +
         '<label class="f"><span>مدت (دقیقه)</span><input class="input ltr num" id="sf_d" inputmode="numeric" value="' + (s.duration || '') + '"></label>' +
-        '<label class="f"><span>تعرفه (تومان)</span><input class="input ltr num" id="sf_p" inputmode="numeric" value="' + (s.price || '') + '"></label></div></div>',
+        '<label class="f"><span>تعرفه (تومان)</span><input class="input ltr num" id="sf_p" inputmode="numeric" value="' + (s.price || '') + '"></label></div>' +
+        '<label class="f"><span>دسته</span><select class="input" id="sf_c">' + SVC_CATS.slice(1).map(function (c) { return '<option value="' + c[0] + '"' + (svcCat(s) === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></label>' +
+        '<label class="f"><span>توضیح کوتاه</span><input class="input" id="sf_ds" placeholder="مثلاً: پاکسازی جرم و پلاک" value="' + esc(s.desc || SVC_DESC[s.name] || '') + '"></label></div>',
       foot: '<button class="btn primary" id="sfSave">ذخیره</button><button class="btn ghost" data-act="closeModal">انصراف</button>' + (id ? '<div class="grow"></div><button class="btn danger icon" id="sfDel">' + ic('trash') + '</button>' : ''),
       onMount: function (el) {
         $('#sfSave', el).onclick = function () {
           var n = $('#sf_n', el).value.trim(); if (!n) { toast('نام را وارد کنید'); return; }
-          Object.assign(s, { name: n, duration: num($('#sf_d', el).value) || 30, price: num($('#sf_p', el).value) });
+          Object.assign(s, { name: n, duration: num($('#sf_d', el).value) || 30, price: num($('#sf_p', el).value), category: $('#sf_c', el).value, desc: $('#sf_ds', el).value.trim() });
           S.save('services', s); closeModal();
         };
         if (id) $('#sfDel', el).onclick = function () { confirmBox('خدمت «' + esc(s.name) + '» حذف شود؟', 'حذف', function () { S.remove('services', id); closeAll(); }, true); };
@@ -1095,6 +1352,11 @@
       render();
     },
     closeModal: function () { closeModal(); },
+    back: function () { ui.view = BACK[ui.view] || 'home'; render(); window.scrollTo(0, 0); },
+    goSearch: function () { ui.view = 'patients'; render(); window.scrollTo(0, 0); var q = $('#pq'); if (q) q.focus(); },
+    reminders: function () { openModal({ title: 'یادآوری نوبت‌های فردا', body: '<div class="small muted" style="margin-bottom:8px">' + J.jLong(J.addDays(J.today(), 1)) + '</div>' + remindersHTML() }); },
+    svcCat: function (d) { ui.scat = d.c; render(); },
+    svcBook: function (d) { closeAll(); apptForm(null, { svc: d.id, date: J.today() }); },
     newAppt: function (d) { closeAll(); apptForm(null, { pid: d.pid, date: ui.view === 'calendar' ? ui.date : J.today() }); },
     editAppt: function (d) { closeAll(); apptForm(S.get('appointments', d.id)); },
     nextAppt: function (d) { var a = S.get('appointments', d.id); closeAll(); apptForm(null, { pid: a.patientId, doc: a.doctorId, date: J.addDays(a.date, 7) }); },
@@ -1144,8 +1406,8 @@
       var w = S.get('waitlist', d.id), p = w.phone && patients().find(function (x) { return normPhone(x.phone) === w.phone; });
       apptForm(null, { pid: p ? p.id : null, newName: p ? null : w.name, newPhone: w.phone, date: J.today(), notes: w.note || '', waitId: w.id });
     },
-    setTab: function (d) { ui.view = 'settings'; ui.setTab = d.t; render(); },
-    saveClinic: function () { S.save('settings', Object.assign(settings(), { clinicName: val('s_name').trim() || 'مطب دندانپزشکی', phone: en(val('s_phone')).trim(), address: val('s_addr').trim() })); toast('ذخیره شد'); },
+    setTab: function (d) { closeAll(); ui.view = 'settings'; ui.setTab = d.t; render(); window.scrollTo(0, 0); },
+    saveClinic: function () { S.save('settings', Object.assign(settings(), { clinicName: val('s_name').trim() || 'مطب دندانپزشکی', greetName: val('s_greet').trim(), phone: en(val('s_phone')).trim(), address: val('s_addr').trim() })); toast('ذخیره شد'); },
     saveHours: function () {
       var s = val('s_start'), e = val('s_end');
       if (!s || !e || t2m(e) <= t2m(s)) { toast('ساعت پایان باید بعد از شروع باشد'); return; }
@@ -1222,12 +1484,14 @@
   document.addEventListener('input', function (e) {
     var k = e.target.getAttribute && e.target.getAttribute('data-in');
     if (k === 'pq') { ui.pq = e.target.value; clearTimeout(pqT); pqT = setTimeout(render, 120); }
+    if (k === 'sq') { ui.sq = e.target.value; clearTimeout(pqT); pqT = setTimeout(render, 120); }
   });
+  document.addEventListener('change', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-chg') === 'theme') A.theme(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modals.length) closeModal(); });
   // دکمه بازگشت اندروید
   window.dentinoBack = function () {
     if (modals.length) { closeModal(); return true; }
-    if (ui.view === 'patient') { ui.view = 'patients'; render(); return true; }
+    if (BACK[ui.view]) { A.back(); return true; }
     if (ui.view !== 'home') { ui.view = 'home'; render(); return true; }
     return false;
   };
@@ -1245,16 +1509,42 @@
   setInterval(function () { if (!modals.length && (ui.view === 'calendar' || ui.view === 'home')) render(); }, 60000);
 
   // ================= ورود =================
+  var SLIDES = [
+    { art: { ring: true, shield: true, sparkle: true }, t1: 'لبخند سالم،', t2: 'مطب منظم', d: 'نوبت‌ها، پرونده بیماران و حساب‌ها، همه یک‌جا و مرتب؛ برای منشی و پزشک.' },
+    { art: { cal: true, sparkle: true }, t1: 'نوبت‌دهی', t2: 'در چند ثانیه', d: 'تقویم شمسی، ساعت‌های خالی و یادآوری پیامکی برای کم کردن غیبت بیماران.' },
+    { art: { check: true }, t1: 'پرونده کامل', t2: 'و چارت دندان', d: 'طرح درمان روی هر دندان، پرداخت‌ها و مانده حساب هر بیمار.' }
+  ];
+  function welcomeScreen(done, i) {
+    i = i || 0; ui.gate = true;
+    var s = SLIDES[i], last = i === SLIDES.length - 1;
+    $('#root').innerHTML = '<div class="welcome"><div class="box"><div class="art">' + toothSVG(s.art) + '</div><h1>' + s.t1 + '<span class="acc">' + s.t2 + '</span></h1><p>' + s.d + '</p>' +
+      '<button class="btn cta" id="wNext">' + (last ? 'شروع کنید' : 'بعدی') + '<span class="arr">' + ic('left') + '</span></button>' +
+      '<div class="dots">' + SLIDES.map(function (x, k) { return '<i class="' + (k === i ? 'on' : '') + '"></i>'; }).join('') + '</div>' +
+      '<div class="skip">' + (last ? '&nbsp;' : '<a id="wSkip">رد کردن</a>') + '</div></div></div>';
+    var fin = function () { ui.gate = false; done(); };
+    $('#wNext').onclick = function () { if (last) fin(); else welcomeScreen(done, i + 1); };
+    if (!last) $('#wSkip').onclick = fin;
+    var w = $('.welcome'), x0 = null;
+    w.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    w.addEventListener('touchend', function (e) {
+      if (x0 == null) return;
+      var dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (dx > 50 && !last) welcomeScreen(done, i + 1);
+      else if (dx < -50 && i > 0) welcomeScreen(done, i - 1);
+    });
+  }
   function loginScreen(err) {
-    $('#root').innerHTML = '<div class="login-wrap"><div class="login"><div class="brand"><div class="brand-logo"><img src="logo.png" alt=""></div><div><div class="brand-name">دنتینو</div><div class="brand-sub">مطب دکتر فرید شیرانی</div></div></div>' +
-      '<form class="card stack" id="lf"><label class="f"><span>نام کاربری</span><input class="input ltr" id="lu" autocapitalize="off" autocomplete="username" required></label>' +
+    ui.gate = true;
+    $('#root').innerHTML = '<div class="welcome"><div class="box"><div class="art" style="width:min(56vw,210px)">' + toothSVG({ ring: true, shield: true, sparkle: true }) + '</div>' +
+      '<h1 style="text-align:center;font-size:26px">خوش آمدید<span class="acc">به دنتینو</span></h1><p style="text-align:center;margin-bottom:18px">' + esc(settings().clinicName) + '</p>' +
+      '<form class="card stack login-card" id="lf"><label class="f"><span>نام کاربری</span><input class="input ltr" id="lu" autocapitalize="off" autocomplete="username" required></label>' +
       '<label class="f"><span>رمز عبور</span><input class="input ltr" id="lp" type="password" autocomplete="current-password" required></label>' +
       (err ? '<div class="alert-box">' + esc(err) + '</div>' : '') +
-      '<button class="btn primary block" id="lb">ورود</button></form>' +
-      '<div class="tiny muted" style="text-align:center;margin-top:14px"><a href="#" id="lreset">ورود با سرور دیگر / حالت محلی</a></div></div></div>';
+      '<button class="btn cta" id="lb">ورود<span class="arr">' + ic('left') + '</span></button></form>' +
+      '<div class="skip"><a id="lreset">ورود با سرور دیگر / حالت محلی</a></div></div></div>';
     $('#lf').onsubmit = async function (e) {
       e.preventDefault();
-      var b = $('#lb'); b.disabled = true; b.textContent = 'در حال ورود...';
+      var b = $('#lb'); b.disabled = true; b.firstChild.textContent = 'در حال ورود…';
       try { await S.login(val('lu'), val('lp')); await afterLogin(); }
       catch (er) { loginScreen(/invalid/i.test(er.message) ? 'نام کاربری یا رمز اشتباه است' : /fetch|network/i.test(er.message) || !navigator.onLine ? 'اتصال به سرور برقرار نشد؛ اینترنت یا آدرس سرور را بررسی کنید.' : er.message); }
     };
@@ -1273,11 +1563,12 @@
     if (!S.all('staff').length) S.save('staff', { id: S.user.username, name: S.user.username, role: 'admin' });
     seedIfEmpty();
     S.subscribe(); S.flush();
+    ui.gate = false;
     render();
   }
 
   async function boot() {
-    try { if (window.Android && Android.setDark && document.documentElement.getAttribute('data-theme') === 'dark') Android.setDark(true); } catch (e) {}
+    try { if (window.Android && Android.setDark) Android.setDark(document.documentElement.getAttribute('data-theme') === 'dark'); } catch (e) {}
     if (localStorage.getItem('dentino_force_local')) { window.DENTINO_CONFIG = {}; }
     S.init();
     if (S.mode === 'cloud') {
@@ -1288,7 +1579,9 @@
       else await afterLogin();
     } else {
       seedIfEmpty();
-      render();
+      var seen = false; try { seen = !!localStorage.getItem('dentino_welcomed'); } catch (e) {}
+      if (seen) render();
+      else welcomeScreen(function () { try { localStorage.setItem('dentino_welcomed', '1'); } catch (e) {} render(); });
     }
   }
   window.addEventListener('DOMContentLoaded', boot);

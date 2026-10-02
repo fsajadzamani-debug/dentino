@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         web = new WebView(this);
-        web.setBackgroundColor(Color.parseColor("#f2f5fa"));
+        web.setBackgroundColor(Color.parseColor("#e3f4f0"));
         setContentView(web);
 
         loader = new WebViewAssetLoader.Builder()
@@ -204,13 +204,14 @@ public class MainActivity extends Activity {
         public void setDark(final boolean dark) {
             runOnUiThread(() -> {
                 Window w = getWindow();
-                w.setStatusBarColor(Color.parseColor(dark ? "#0d1424" : "#1565d8"));
-                w.setNavigationBarColor(Color.parseColor(dark ? "#151f33" : "#ffffff"));
-                web.setBackgroundColor(Color.parseColor(dark ? "#0d1424" : "#f2f5fa"));
+                w.setStatusBarColor(Color.parseColor(dark ? "#0b1f21" : "#d3f0ea"));
+                w.setNavigationBarColor(Color.parseColor(dark ? "#1e171b" : "#fbe8dd"));
+                web.setBackgroundColor(Color.parseColor(dark ? "#0d1a1c" : "#e3f4f0"));
                 if (Build.VERSION.SDK_INT >= 26) {
                     View d = w.getDecorView();
                     int f = d.getSystemUiVisibility();
                     f = dark ? (f & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR) : (f | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+                    f = dark ? (f & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR) : (f | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
                     d.setSystemUiVisibility(f);
                 }
             });
